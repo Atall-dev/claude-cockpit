@@ -36,7 +36,7 @@ claude plugin install token-meter@cockpit
 claude plugin install handoff@cockpit
 ```
 
-Restart Claude Code (or reload the VS Code window) after installing. The pane is drawn as images, so it looks its best in the VS Code extension and the desktop app; in a terminal it falls back to text.
+If the installer says a `style` option is not set, you can skip it: the look defaults to amber and can be switched any time from the pane. Restart Claude Code (or reload the VS Code window) after installing. The pane is drawn as images, so it looks its best in the VS Code extension and the desktop app; in a terminal it falls back to text.
 
 Update later with `claude plugin marketplace update cockpit`, then `claude plugin update <name>@cockpit` for each plugin.
 
