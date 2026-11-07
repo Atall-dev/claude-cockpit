@@ -1,0 +1,9 @@
+{
+  "name": "handoff",
+  "version": "1.0.0",
+  "description": "Moves the current work into a fresh Claude Code session: writes HANDOFF.md and gives one block to paste",
+  "author": {
+    "name": "Atall-dev"
+  },
+  "license": "MIT"
+}

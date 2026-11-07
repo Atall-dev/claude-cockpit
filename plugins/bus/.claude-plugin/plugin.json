@@ -1,0 +1,23 @@
+{
+  "name": "bus",
+  "version": "0.8.1",
+  "description": "Cockpit pane for Claude Code: model, phase, context and plan limits, handoff alarm and subagents, over a calm living scene",
+  "author": {
+    "name": "Atall-dev"
+  },
+  "license": "MIT",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "style": {
+      "type": "string",
+      "title": "Style",
+      "description": "Look of the BUS pane and the token meter: amber (phosphor tube), 1bit (ink on black, dithered) or firefly (lime on moss). The switcher in the BUS pane, \"/bus style\" and /config set both.",
+      "default": "amber",
+      "options": [
+        "amber",
+        "1bit",
+        "firefly"
+      ]
+    }
+  }
+}

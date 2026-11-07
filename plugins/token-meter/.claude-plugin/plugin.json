@@ -1,0 +1,23 @@
+{
+  "name": "token-meter",
+  "version": "0.6.0",
+  "description": "Token meter above the prompt: the session's tokens on a gauge with round goals, in the BUS pane's style",
+  "author": {
+    "name": "Atall-dev"
+  },
+  "license": "MIT",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "style": {
+      "type": "string",
+      "title": "Style",
+      "description": "Look of the BUS pane and the token meter: amber (phosphor tube), 1bit (ink on black, dithered) or firefly (lime on moss). The switcher in the BUS pane, \"/bus style\" and /config set both.",
+      "default": "amber",
+      "options": [
+        "amber",
+        "1bit",
+        "firefly"
+      ]
+    }
+  }
+}

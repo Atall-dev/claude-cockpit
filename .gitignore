@@ -1,0 +1,15 @@
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+.env*
+*.pem
+*.key
+# local Claude Code state, handoff notes, types the plugin tooling generates
+.claude/
+HANDOFF.md
+**/.claude-plugin/types/
+# local previews and scratch output
+review/
+**/concepts/*.png
+**/concepts/*.html
