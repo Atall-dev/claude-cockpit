@@ -16,7 +16,7 @@ const states = [
 let html = '<!doctype html><body style="margin:0;background:#111;color:#ece8dc;font:11px Consolas;padding:20px">'
 for (const [cap, total, working, W] of states) {
   const { goal, frac } = progress(total)
-  const svg = style === '1bit' ? gaugeSvg(total, goal, frac, working, W) : tubeGaugeSvg(total, goal, frac, frac, working, W, tubeFor(style)!)
+  const svg = style === '1bit' ? gaugeSvg(total, goal, frac, working, W) : tubeGaugeSvg(total, goal, frac, working, W, tubeFor(style)!)
   html += `<div style="margin:0 0 6px">${cap} · ${svg.length} ch</div><img style="display:block;margin-bottom:18px" src="data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}">`
 }
 const page = out.replace(/\.png$/, '.html')

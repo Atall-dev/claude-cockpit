@@ -15,19 +15,40 @@ const MAX_KEPT = 12
 // The style is a userConfig row of this plugin and of the token meter alike, so /config shows it and a
 // change reloads each with the new value. Setting it here sets both rows, under whatever key the install
 // gave them (`bus.style`, or `bus@<marketplace>.style` for a marketplace install).
+// An install lives at .../plugins/cache/<marketplace>/bus/<version>, its rows keyed `<name>@<marketplace>`.
+export const marketOf = (root: string) => root.split(/[\\/]/).filter(Boolean).at(-3)
+
 const setStyle = async ($: EngineInterface, style: Style): Promise<string | null> => {
   try {
-    const rows = (await $.config.list()).filter(r => /^(bus|token-meter)(@.+)?\.style$/.test(r.key))
+    const all = await $.config.list()
+    const rows = all.filter(r => /^(bus|token-meter)(@.+)?\.style$/.test(r.key))
+    $.ui.log(`style rows: ${rows.map(r => r.key).join(', ') || `none of ${all.length}`}`)
     const locked = rows.find(r => r.isLocked)
     if (locked) return `${locked.key} is locked by policy`
     const own = rows.filter(r => r.key.startsWith('bus'))
-    if (!own.length) return 'no style setting found; set it in /config'
-    // The meter's row goes first: changing our own reloads this module, so ours is set once, last.
-    for (const row of [...rows.filter(r => !r.key.startsWith('bus')), own[0]!]) {
-      const res = await $.config.set({ key: row.key, value: style })
-      if (res.deny) return `${row.key}: ${res.deny}`
+    if (own.length) {
+      // The meter's row goes first: changing our own reloads this module, so ours is set once, last.
+      for (const row of [...rows.filter(r => !r.key.startsWith('bus')), own[0]!]) {
+        const res = await $.config.set({ key: row.key, value: style })
+        if (res.deny) return `${row.key}: ${res.deny}`
+      }
+      return null
     }
-    return null
+    // The list showed no row of ours (seen live in 0.8.1): try the keys an install gives, meter first.
+    const tryKeys = async (keys: string[]) => {
+      for (const key of keys) {
+        // logged before the set: a set of our own key reloads this module, and nothing should follow it
+        $.ui.log(`style set ${key}`)
+        const res = await $.config.set({ key, value: style }).catch((err: unknown) => ({ deny: String(err) }))
+        if (!res.deny) return true
+        $.ui.log(`style set ${key} refused: ${res.deny}`)
+      }
+      return false
+    }
+    const market = marketOf($.plugin.root)
+    const meterSet = await tryKeys([`token-meter@${market}.style`, 'token-meter.style'])
+    if (await tryKeys([`bus@${market}.style`, 'bus.style'])) return null
+    return meterSet ? 'the token meter changed, this pane has no style setting' : 'no style setting found; set it in /config'
   } catch (err) {
     return String(err instanceof Error ? err.message : err)
   }
@@ -245,11 +266,16 @@ export const register: Register = (on, options) => {
           <Svg source={corner('left', c.edge)} alt="" />
           {/* the editor turns these into 0.4lh and 0.5ch: a thin strip, the buttons near the corner */}
           <Box flexDirection="row" flexGrow={1} justifyContent="flex-end" columnGap={1} paddingTop={0.4} paddingRight={0.5}>
-            {STYLES.map(s => (
-              <Button key={`style-${s.value}`} label={s.label} dimColor={s.value !== style} onPress={() => pick(s.value)}>
-                <Text color={s.value === style ? c.on : c.off}>{s.label}</Text>
-              </Button>
-            ))}
+            {/* The current look is lit text in the card's colour; the others are dim Buttons, which VS Code
+                draws as ghosts (no fill, a thin border) where a bright one gets the theme's blue. VS Code draws a
+                Button's label, never its children, so a Button cannot carry the palette colour. */}
+            {STYLES.map(s =>
+              s.value === style ? (
+                <Text key={`style-${s.value}`} color={c.on}>{s.label}</Text>
+              ) : (
+                <Button key={`style-${s.value}`} label={s.label} dimColor onPress={() => pick(s.value)} />
+              ),
+            )}
           </Box>
           <Svg source={corner('right', c.edge)} alt="" />
         </Box>

@@ -39,8 +39,10 @@ const colon = (x: number, w: number, y: number, gap: number) => {
   return `M${cx} ${y}h2v2h-2zM${cx} ${y + gap}h2v2h-2z`
 }
 
-// A still image: no slide, no fade. Every redraw is a new picture for the editor, so the only motion is the
-// pointer blinking in two steps while a turn runs.
+// A still image, always: no blink, no slide. The VS Code panel copies any picture holding an `<animate`
+// (stepped ones too) 30 times a second for as long as it is shown, through one queue shared with every
+// mod's pictures, and a mod over its time budget has all its pictures wait: the BUS scene stutters and
+// its phase lags. A running turn is told by a solid pointer; at rest it is dithered.
 export const gaugeSvg = (total: number, goal: number, frac: number, isWorking: boolean, W: number) => {
   const X1 = W - 18
   const font = `font-family="Consolas,ui-monospace,SFMono-Regular,monospace"`
@@ -76,11 +78,8 @@ export const gaugeSvg = (total: number, goal: number, frac: number, isWorking: b
     })
     .join('')
 
-  const blink = isWorking
-    ? `<animate attributeName="opacity" values="1;0" dur="1.2s" calcMode="discrete" repeatCount="indefinite"/>`
-    : ''
   const cx = hx + (sw - 2) / 2
-  const pointer = `<path d="M${(cx - 4).toFixed(1)} 6h8l-4 7z" fill="${INK}">${blink}</path>`
+  const pointer = `<path d="M${(cx - 4).toFixed(1)} 6h8l-4 7z" fill="${isWorking ? INK : 'url(#d50)'}"/>`
 
   const bracket = (x: number, y: number, dx: number, dy: number) =>
     `<path d="M${x + dx * 9} ${y} H${x} V${y + dy * 9}" fill="none" stroke="${INK}" stroke-width="1.5"/>`
@@ -134,17 +133,14 @@ export const FIREFLY: Tube = {
 // The configured look: 1-bit draws its own gauge, anything else is a tube palette (amber by default).
 export const tubeFor = (style: unknown): Tube | null => (style === '1bit' ? null : style === 'firefly' ? FIREFLY : AMBER)
 
-// The pointer eases once from where it was last drawn (a transition, not a loop: it ends and holds), and
-// pulses in held steps while a turn runs.
-export const tubeGaugeSvg = (total: number, goal: number, from: number, to: number, isWorking: boolean, W: number, P: Tube = AMBER) => {
+// A still image, as the 1-bit gauge (see there why): the pointer lit while a turn runs, dim at rest.
+export const tubeGaugeSvg = (total: number, goal: number, to: number, isWorking: boolean, W: number, P: Tube = AMBER) => {
   const X1 = W - 18
   const span = X1 - X0
   // One tick per ~10px, a multiple of 20 so quarter and fifth marks both land on ticks.
   const TICKS = Math.max(20, Math.round(span / 200) * 20)
-  const p0 = (X0 + from * span).toFixed(1)
   const p1 = (X0 + to * span).toFixed(1)
   const font = `font-family="Consolas,ui-monospace,SFMono-Regular,monospace"`
-  const ease = `dur="0.9s" calcMode="spline" keySplines="0.2 0.8 0.2 1" keyTimes="0;1" fill="freeze"`
   const [num, unit] = parts(total)
   // round marks, as the 1-bit gauge: quarters of 1 x 10^k, fifths of 2.5 and 5 x 10^k
   const n = goal / 10 ** Math.floor(Math.log10(goal || 1)) === 1 ? 4 : 5
@@ -162,11 +158,6 @@ export const tubeGaugeSvg = (total: number, goal: number, from: number, to: numb
       return `<text x="${(X0 + f * span).toFixed(1)}" y="44" text-anchor="${anchor}" ${font} font-size="11" fill="${P.lab}">${f === 0 ? '0' : fmtGoal(goal * f)}</text>`
     })
     .join('')
-  const pulse = isWorking
-    ? `<animate attributeName="opacity" values="1;0.6;0.35;0.6" dur="0.9s" calcMode="discrete" repeatCount="indefinite"/>`
-    : ''
-  const slide = from === to ? '' : `<animateTransform attributeName="transform" type="translate" from="${p0} 0" to="${p1} 0" ${ease}/>`
-  const grow = from === to ? '' : `<animate attributeName="x2" from="${p0}" to="${p1}" ${ease}/>`
   const bracket = (x: number, y: number, dx: number, dy: number) =>
     `<path d="M${x + dx * 8} ${y} H${x} V${y + dy * 8}" fill="none" stroke="${P.lab}" stroke-width="1.5"/>`
 
@@ -176,11 +167,9 @@ export const tubeGaugeSvg = (total: number, goal: number, from: number, to: numb
   <text x="16" y="17" ${font} font-size="11" letter-spacing="2" fill="${P.lab}">TOKENS</text>
   <text x="16" y="40" ${font} font-size="22" font-weight="700" fill="${P.num}">${num}<tspan font-size="12" fill="${P.unit}" dx="3">${unit}</tspan></text>
   <line x1="${X0}" y1="31" x2="${X1}" y2="31" stroke="${P.rest}"/>
-  <line x1="${X0}" y1="31" x2="${p1}" y2="31" stroke="${P.fill}" stroke-width="2.5">${grow}</line>
+  <line x1="${X0}" y1="31" x2="${p1}" y2="31" stroke="${P.fill}" stroke-width="2.5"/>
   ${ticks}
-  <g transform="translate(${p1} 0)">${slide}
-    <path d="M0 21 l-5 -9 h10 z" fill="${P.ptr}">${pulse}</path>
-  </g>
+  <path transform="translate(${p1} 0)" d="M0 21 l-5 -9 h10 z" fill="${isWorking ? P.ptr : P.unit}"/>
   ${labels}
 </svg>`
 }

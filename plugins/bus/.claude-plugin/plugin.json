@@ -1,6 +1,6 @@
 {
   "name": "bus",
-  "version": "0.8.1",
+  "version": "0.8.3",
   "description": "Cockpit pane for Claude Code: model, phase, context and plan limits, handoff alarm and subagents, over a calm living scene",
   "author": {
     "name": "Atall-dev"

@@ -62,15 +62,14 @@ test('totals main and subagent requests into one 1-bit gauge', { options: { styl
   expect(source).toContain('h2v2h-2z') // empty cells are ':' dots, placed per cell
   expect(source).toContain('url(#d50)')
   expect(source).not.toContain('opacity="0.') // no grey made by transparency
-  expect(source).toContain('repeatCount="indefinite"') // pointer blinks while working
-  // no smooth motion: every animation steps, nothing slides
-  expect(source).not.toContain('calcMode="spline"')
-  expect(source).not.toContain('animateTransform')
-  expect(source.match(/<animate /g)?.length).toBe((source.match(/calcMode="discrete"/g) ?? []).length)
+  // A still picture even while working: VS Code copies any picture with `<animate` (or `<set`) 30 times a
+  // second through the queue the BUS scene shares, which is what made the pane stutter.
+  expect(source).not.toMatch(/<animate|<set[\s/>]/)
+  expect(source).toContain('6h8l-4 7z" fill="#ece8dc"') // working: the pointer solid
   await vs.unmount()
 })
 
-test('the pointer stops pulsing when no turn runs', async ($, on) => {
+test('the pointer dims when no turn runs', async ($, on) => {
   on('turn.step', async function* (_, e) {
     const usage = { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, model: 'm' }
     return { turnId: e.turnId, index: e.index, answer: 'ok', toolUses: [], stopReason: 'end_turn', usage } as never
@@ -83,7 +82,8 @@ test('the pointer stops pulsing when no turn runs', async ($, on) => {
 
   const ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
   const source = String((await ui.find({ type: 'Svg' }))?.props.source)
-  expect(source).not.toContain('repeatCount="indefinite"')
+  expect(source).not.toMatch(/<animate|<set[\s/>]/)
+  expect(source).toContain('h10 z" fill="#e8962a"') // amber at rest: the pointer in the dimmer unit tone
   await ui.unmount()
 })
 
@@ -104,7 +104,9 @@ test('amber by default, the 1-bit look only when chosen', async ($, on) => {
   expect(source).not.toContain('#ece8dc')
   expect(source).toContain('>31.0<tspan')
   expect(source).toContain('>25K</text>') // the 100K scale marked in quarters
-  for (const a of source.match(/<animate(Transform)? [^>]*repeatCount[^>]*>/g) ?? []) expect(a).toContain('calcMode="discrete"')
+  // still while working, after a change of total too (the old pointer slide kept the picture "moving")
+  expect(source).not.toMatch(/<animate|<set[\s/>]/)
+  expect(source).toContain('fill="#ffd27a"') // working: the pointer lit
   await vs.unmount()
   const term = await $.ui.mount({ ...BAND, surface: 'terminal' })
   expect((await term.find({ type: 'Text', text: /TOKENS/ }))?.props.color).toBe('#b08035')

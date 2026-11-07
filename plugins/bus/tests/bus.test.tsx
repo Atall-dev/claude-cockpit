@@ -4,6 +4,7 @@ import { beginAt, buildScene, sceneSvg, skyGrid, trackAt } from '../hooks/scene'
 import { AGENT_SLOTS, SH, SW, skyBitmap, skyLayers } from '../hooks/sky'
 import type { SkyState } from '../hooks/sky'
 import { DIM, TUBE } from '../hooks/styles'
+import { marketOf } from '../hooks/register'
 
 const PANE = {
   plugin: 'bus',
@@ -44,10 +45,11 @@ const stub = (on: any, use: () => unknown = () => usage, toolCall: (...a: any[])
   on('clock.now', () => ({ value: Date.now() }))
   on('turn.start', (_: unknown, e: { turnId: string }) => ({ turnId: e.turnId }))
   on('turn.complete', () => ({ text: '' }))
+  on('ui.log', () => ({ value: undefined }))
 }
 
 type Mounted = { findAll: (q: { type: string }) => Promise<{ props: Record<string, unknown> }[]> }
-// The pane is the switcher row (two corner images and three buttons), the card, then the scene.
+// The pane is the switcher row (two corner images, the lit current style and two buttons), the card, then the scene.
 const pane = async (ui: Mounted) => {
   const svgs = await ui.findAll({ type: 'Svg' })
   const card = svgs.find(s => String(s.props.alt).startsWith('Claude'))
@@ -553,8 +555,7 @@ test('the switcher and /bus style set both mods', async ($, on) => {
 
   const ui = await $.ui.mount({ ...PANE, surface: 'vscode' })
   const buttons = await ui.findAll({ type: 'Button' })
-  expect(buttons.map(b => b.props.key)).toEqual(['style-amber', 'style-1bit', 'style-firefly'])
-  await ui.press({ key: 'style-amber' }) // the current one: nothing to change
+  expect(buttons.map(b => b.props.key)).toEqual(['style-1bit', 'style-firefly']) // the current one is text
   await ui.press({ key: 'style-firefly' })
   await ui.unmount()
   expect(set).toEqual([
@@ -579,6 +580,46 @@ test('the switcher and /bus style set both mods', async ($, on) => {
   expect(set).toEqual([])
 })
 
+// Catches 0.8.1's bug: config.list showed no row of ours live, and the switch gave up without trying.
+test('an empty config list still sets both mods by their install keys', async ($, on) => {
+  stub(on)
+  on('config.list', () => ({ value: [] }) as never)
+  const set: string[] = []
+  const known = new Set(['bus.style'])
+  on('config.set', ((_: unknown, e: { key: string; value: unknown }) => {
+    set.push(e.key)
+    // the engine rejects a key no row has, it does not answer { deny }
+    if (!known.has(e.key) && !(known.size && e.key.startsWith('token-meter@'))) throw new Error('no row')
+    return { value: e.value }
+  }) as never)
+  const out = JSON.stringify(await $.command.run({ command: 'bus', args: 'style firefly' } as never))
+  expect(out).toContain('style: firefly')
+  // the marketplace comes from the install path, .../cache/<marketplace>/bus/<version>
+  expect(set.map(k => k.replace(/@[^.]+/, '@M'))).toEqual(['token-meter@M.style', 'bus@M.style', 'bus.style'])
+
+  known.clear()
+  const none = JSON.stringify(await $.command.run({ command: 'bus', args: 'style 1bit' } as never))
+  expect(none).toContain('no style setting found')
+})
+
+// Catches a wrong segment of the install path, which the plain `bus.style` fallback would hide.
+test('the marketplace is read from the install path', () => {
+  expect(marketOf(String.raw`C:\Users\u\.claude\plugins\cache\my-market\bus\0.8.3`)).toBe('my-market')
+  expect(marketOf('/home/u/.claude/plugins/cache/cockpit/bus/0.8.3/')).toBe('cockpit')
+})
+
+// Catches a half switch reported as nothing changed: the meter took the style, the pane did not.
+test('a meter-only change says so', async ($, on) => {
+  stub(on)
+  on('config.list', () => ({ value: [] }) as never)
+  on('config.set', ((_: unknown, e: { key: string; value: unknown }) => {
+    if (e.key.startsWith('token-meter@')) return { value: e.value }
+    throw new Error('no row')
+  }) as never)
+  const out = JSON.stringify(await $.command.run({ command: 'bus', args: 'style firefly' } as never))
+  expect(out).toContain('the token meter changed')
+})
+
 // Catches a command that reports a switch the engine refused (config.set answers { deny }, it does not throw).
 test('a refused style change is reported, not claimed', async ($, on) => {
   stub(on)
@@ -595,13 +636,10 @@ test('the switcher marks the current style', { options: { style: '1bit' } }, asy
   stub(on)
   const ui = await $.ui.mount({ ...PANE, surface: 'vscode' })
   const texts = await ui.findAll({ type: 'Text' })
-  const label = (s: string) => texts.find(t => (t as { text?: string }).text === s)?.props
-  expect(label('1-BIT')).toMatchObject({ color: '#ece8dc' })
-  expect(label('AMBER')).toMatchObject({ color: '#8f8b80' })
-  expect(label('1-BIT')?.bold).toBe(label('AMBER')?.bold)
-  // the editor's own dimming goes on the other two buttons only
+  expect(texts.find(t => (t as { text?: string }).text === '1-BIT')?.props).toMatchObject({ color: '#ece8dc' })
+  // The others are dim Buttons: VS Code fills a bright one with the theme's blue, a dim one is a ghost.
   const buttons = await ui.findAll({ type: 'Button' })
-  expect(buttons.map(b => b.props.dimColor)).toEqual([true, false, true])
+  expect(buttons.map(b => [b.props.label, b.props.dimColor])).toEqual([['AMBER', true], ['FIREFLY', true]])
   const rows = await ui.findAll({ type: 'Box' })
   expect(rows.some(b => b.props.backgroundColor === '#000000')).toBe(true)
   await ui.unmount()

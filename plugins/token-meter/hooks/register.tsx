@@ -29,9 +29,6 @@ const usd = (v: number | null) => (v === null ? '' : `$${v.toFixed(2)}`)
 const line = (label: string, c: Counts) =>
   `${label.padEnd(9)} ${fmt(sum(c)).padStart(8)}  in ${fmt(c.input)} | out ${fmt(c.output)} | cache read ${fmt(c.cacheRead)} | cache write ${fmt(c.cacheWrite)} | ${c.requests} req`
 
-// Where the amber pointer was last drawn: it eases from there to the new total.
-let shownFrac = 0
-
 export const register: Register = (on, options) => {
   // The look, shared with the BUS pane: "/bus style" or the pane's switcher sets both. Null is 1-bit.
   const tube = tubeFor(options.style)
@@ -147,10 +144,7 @@ export const register: Register = (on, options) => {
     // slot's cells so the cap, not a gap, decides: the gauge always spans the row.
     const W = slotPx(e.props.bodyColumns)
     if (tube) {
-      // a lower total (a reset) slides from zero
-      const from = shownFrac > frac ? 0 : shownFrac
-      shownFrac = frac
-      return <Svg source={tubeGaugeSvg(total, goal, from, frac, e.props.isWorking, W, tube)} alt={alt} />
+      return <Svg source={tubeGaugeSvg(total, goal, frac, e.props.isWorking, W, tube)} alt={alt} />
     }
     return <Svg source={gaugeSvg(total, goal, frac, e.props.isWorking, W)} alt={alt} />
   })
